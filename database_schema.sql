@@ -241,4 +241,59 @@ CREATE TABLE `audit_logs` (
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+-- 13. Damages & Maintenance Table
+DROP TABLE IF EXISTS `damages`;
+CREATE TABLE `damages` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `rental_id` INT NULL,
+  `item_id` INT NOT NULL,
+  `customer_id` INT NULL,
+  `damage_type` VARCHAR(80) NOT NULL,
+  `severity` ENUM('Low', 'Medium', 'Critical') DEFAULT 'Low',
+  `repair_cost` DECIMAL(10,2) DEFAULT 0.00,
+  `fee_charged` DECIMAL(10,2) DEFAULT 0.00,
+  `fee_status` ENUM('Unpaid', 'Paid', 'Waived') DEFAULT 'Unpaid',
+  `description` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`item_id`) REFERENCES `inventory_items`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 14. Promotional Discounts & Coupons Table
+DROP TABLE IF EXISTS `discounts`;
+CREATE TABLE `discounts` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `code` VARCHAR(50) NOT NULL UNIQUE,
+  `discount_percent` DECIMAL(5,2) DEFAULT 0.00,
+  `fixed_amount` DECIMAL(10,2) DEFAULT 0.00,
+  `min_order_amount` DECIMAL(10,2) DEFAULT 0.00,
+  `max_discount_amount` DECIMAL(10,2) DEFAULT 0.00,
+  `expiry_date` DATE,
+  `usage_limit` INT DEFAULT 100,
+  `used_count` INT DEFAULT 0,
+  `is_active` BOOLEAN DEFAULT TRUE,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- 15. Product Reviews & Ratings Table
+DROP TABLE IF EXISTS `reviews`;
+CREATE TABLE `reviews` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `item_id` INT NOT NULL,
+  `customer_name` VARCHAR(120) NOT NULL,
+  `rating` INT NOT NULL DEFAULT 5,
+  `comment` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`item_id`) REFERENCES `inventory_items`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 16. Store & Global Parameters Table
+DROP TABLE IF EXISTS `store_settings`;
+CREATE TABLE `store_settings` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `setting_key` VARCHAR(100) NOT NULL UNIQUE,
+  `setting_value` TEXT,
+  `description` VARCHAR(255),
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
 SET FOREIGN_KEY_CHECKS = 1;

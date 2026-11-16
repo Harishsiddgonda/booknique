@@ -19,6 +19,11 @@ export function getApiBaseUrl() {
     return custom.trim().replace(/\/$/, "");
   }
 
+  // Check Vite environment variable (set during production build)
+  if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) {
+    return import.meta.env.VITE_API_URL.trim().replace(/\/$/, "");
+  }
+
   // Detect Capacitor native platform (Android / iOS)
   const isNative = typeof window !== "undefined" && (
     window.Capacitor?.isNativePlatform() ||
@@ -27,6 +32,12 @@ export function getApiBaseUrl() {
   );
 
   if (isNative) {
+    // Check if user saved a production cloud URL or local dev IP
+    const targetEnv = localStorage.getItem("booknique_env_mode") || "render";
+    if (targetEnv === "render") {
+      return "https://booknique-api.onrender.com";
+    }
+
     // 10.0.2.2 points to host machine from Android Emulator, 192.168.1.2 for physical device
     const savedHost = localStorage.getItem("booknique_host_ip") || "10.0.2.2";
     return `http://${savedHost}:5000`;

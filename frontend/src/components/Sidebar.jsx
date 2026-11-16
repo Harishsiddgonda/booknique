@@ -17,7 +17,16 @@ import {
   User,
   ShieldCheck,
   X,
-  PhoneCall
+  PhoneCall,
+  RotateCcw,
+  Wrench,
+  Tag,
+  Settings,
+  ShieldAlert,
+  HelpCircle,
+  Info,
+  Layers,
+  FileText
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -31,21 +40,31 @@ export default function Sidebar({
 
   // Navigation Items per Role
   const adminNav = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "dashboard", label: "Dashboard Overview", icon: LayoutDashboard },
     { id: "inventory", label: "Inventory Catalog", icon: Boxes },
+    { id: "categories", label: "Categories Manager", icon: Layers },
     { id: "members", label: "Members Management", icon: Users },
     { id: "rentals", label: "Rental Orders", icon: Repeat2 },
+    { id: "returns_admin", label: "Returns & Late Fees", icon: RotateCcw },
+    { id: "damages_admin", label: "Damages & Repairs", icon: Wrench },
     { id: "delivery", label: "Delivery Tracking", icon: Truck },
     { id: "plans", label: "Membership Plans", icon: CreditCard },
+    { id: "payments", label: "Invoices & Payments", icon: Receipt },
+    { id: "discounts_admin", label: "Coupons & Discounts", icon: Tag },
+    { id: "users_admin", label: "User Accounts & Roles", icon: ShieldCheck },
     { id: "procurement", label: "Procurement & Restock", icon: Building2 },
     { id: "reports", label: "Revenue & Reports", icon: BarChart3 },
+    { id: "settings_admin", label: "Store & Cloud Settings", icon: Settings },
+    { id: "audit_logs_admin", label: "System Audit Logs", icon: ShieldAlert },
     { id: "sql_relational", label: "SQL Relational Explorer", icon: Database }
   ];
 
   const staffNav = [
     { id: "dashboard", label: "Operations Desk", icon: LayoutDashboard },
     { id: "inventory", label: "Stock & Condition", icon: Boxes },
-    { id: "rentals", label: "Issue & Return Desk", icon: Repeat2 },
+    { id: "rentals", label: "Issue & Rental Orders", icon: Repeat2 },
+    { id: "returns_admin", label: "Return Desk (Check-In)", icon: RotateCcw },
+    { id: "damages_admin", label: "Damage Logs", icon: Wrench },
     { id: "delivery", label: "Dispatch & Delivery", icon: Truck },
     { id: "members", label: "Member Verification", icon: Users }
   ];
@@ -53,10 +72,15 @@ export default function Sidebar({
   const customerNav = [
     { id: "customer_home", label: "Home Dashboard", icon: Home },
     { id: "customer_catalog", label: "Browse Books & Toys", icon: BookOpen },
+    { id: "categories", label: "Explore Categories", icon: Layers },
     { id: "customer_rentals", label: "My Borrowed Items", icon: ShoppingBag },
     { id: "customer_subscription", label: "My Subscription Plan", icon: CreditCard },
     { id: "customer_invoices", label: "Invoices & Receipts", icon: Receipt },
-    { id: "customer_profile", label: "Account & Settings", icon: User }
+    { id: "customer_profile", label: "Account & Settings", icon: User },
+    { id: "about_us", label: "About Booknique", icon: Info },
+    { id: "faq", label: "FAQs & Guidelines", icon: HelpCircle },
+    { id: "contact_us", label: "Contact Store Desk", icon: PhoneCall },
+    { id: "terms_privacy", label: "Terms & Privacy Policy", icon: FileText }
   ];
 
   const items = role === "admin" ? adminNav : role === "staff" ? staffNav : customerNav;

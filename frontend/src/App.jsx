@@ -46,6 +46,19 @@ import CustomerSubscriptionView from "./views/CustomerSubscriptionView";
 import CustomerInvoicesView from "./views/CustomerInvoicesView";
 import CustomerProfileView from "./views/CustomerProfileView";
 
+import AboutUsView from "./views/AboutUsView";
+import ContactUsView from "./views/ContactUsView";
+import FaqView from "./views/FaqView";
+import TermsPrivacyView from "./views/TermsPrivacyView";
+import CategoriesView from "./views/CategoriesView";
+
+import UsersAdminView from "./views/UsersAdminView";
+import ReturnsAdminView from "./views/ReturnsAdminView";
+import DamageAdminView from "./views/DamageAdminView";
+import DiscountsAdminView from "./views/DiscountsAdminView";
+import SettingsAdminView from "./views/SettingsAdminView";
+import AuditLogsAdminView from "./views/AuditLogsAdminView";
+
 export default function AppWrapper() {
   return (
     <AuthProvider>
@@ -722,6 +735,70 @@ function MainApp() {
             <ReportsView
               reports={reports}
               dashboardData={dashboardData}
+            />
+          )}
+
+          {activeTab === "categories" && (
+            <CategoriesView
+              onSelectCategory={(catName, type) => {
+                setTypeFilter(type || "All");
+                setSearch(catName);
+                setActiveTab("customer_catalog");
+              }}
+            />
+          )}
+
+          {activeTab === "about_us" && (
+            <AboutUsView onNavigate={setActiveTab} />
+          )}
+
+          {activeTab === "contact_us" && (
+            <ContactUsView />
+          )}
+
+          {activeTab === "faq" && (
+            <FaqView />
+          )}
+
+          {activeTab === "terms_privacy" && (
+            <TermsPrivacyView />
+          )}
+
+          {/* ADMIN SUB-MODULES */}
+          {activeTab === "returns_admin" && (
+            <ReturnsAdminView
+              showToast={showToast}
+              onReturnSuccess={refreshAll}
+            />
+          )}
+
+          {activeTab === "damages_admin" && (
+            <DamageAdminView
+              showToast={showToast}
+            />
+          )}
+
+          {activeTab === "discounts_admin" && (
+            <DiscountsAdminView
+              showToast={showToast}
+            />
+          )}
+
+          {activeTab === "users_admin" && (
+            <UsersAdminView
+              showToast={showToast}
+            />
+          )}
+
+          {activeTab === "settings_admin" && (
+            <SettingsAdminView
+              showToast={showToast}
+            />
+          )}
+
+          {activeTab === "audit_logs_admin" && (
+            <AuditLogsAdminView
+              showToast={showToast}
             />
           )}
 

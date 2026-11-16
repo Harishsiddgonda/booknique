@@ -5,7 +5,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 
-import db, { initDatabase, query } from "./src/config/db.js";
+import db, { initDatabase, query, getDatabaseDriver } from "./src/config/db.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import dashboardRoutes from "./src/routes/dashboardRoutes.js";
 import inventoryRoutes from "./src/routes/inventoryRoutes.js";
@@ -18,25 +18,67 @@ import procurementRoutes from "./src/routes/procurementRoutes.js";
 import reportRoutes from "./src/routes/reportRoutes.js";
 import notificationRoutes from "./src/routes/notificationRoutes.js";
 import queryRoutes from "./src/routes/queryRoutes.js";
+import bookRoutes from "./src/routes/bookRoutes.js";
+import toyRoutes from "./src/routes/toyRoutes.js";
+import categoryRoutes from "./src/routes/categoryRoutes.js";
+import userRoutes from "./src/routes/userRoutes.js";
+import bookingRoutes from "./src/routes/bookingRoutes.js";
+import returnRoutes from "./src/routes/returnRoutes.js";
+import adminRoutes from "./src/routes/adminRoutes.js";
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
+const host = "0.0.0.0";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distPath = path.join(__dirname, "..", "frontend", "dist");
 
-// Global Middlewares
-app.use(cors());
+// Dynamic Production & Development CORS Configuration
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5000",
+  "http://localhost:3000",
+  "http://10.0.2.2:5000",
+  "capacitor://localhost",
+  "https://localhost",
+  "http://localhost"
+];
+
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/$/, ""));
+}
+if (process.env.CORS_ORIGINS) {
+  process.env.CORS_ORIGINS.split(",").forEach(o => allowedOrigins.push(o.trim()));
+}
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow non-browser requests (mobile apps, curl, server-to-server) or listed origins
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".onrender.com")) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Fallback allow for smooth cross-origin mobile app interaction
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+}));
 app.use(express.json());
 
 // API Health Check
 app.get("/api/health", async (_, res) => {
   try {
-    const [dbTest] = await query("SELECT 1 as connected");
+    const driver = getDatabaseDriver();
+    const rows = await query("SELECT 1 as connected");
+    const isConn = rows && rows.length > 0;
     res.json({
       status: "ok",
-      database: dbTest.connected === 1 ? "connected" : "error",
+      app: "BOOKNIQUE - Books & Toys Rental Management Platform",
+      version: "1.0.0",
+      database: isConn ? "connected" : "error",
+      db_driver: driver,
+      uptime_seconds: Math.floor(process.uptime()),
       timestamp: new Date().toISOString()
     });
   } catch (err) {
@@ -73,13 +115,20 @@ app.post("/api/reset", async (_, res) => {
 
 // Mount Modular API Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/books", bookRoutes);
+app.use("/api/toys", toyRoutes);
+app.use("/api/categories", categoryRoutes);
 app.use("/api/inventory", inventoryRoutes);
+app.use("/api/rentals", rentalRoutes);
+app.use("/api/bookings", bookingRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/returns", returnRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/members", customerRoutes);
-app.use("/api/rentals", rentalRoutes);
 app.use("/api/plans", planRoutes);
-app.use("/api/payments", paymentRoutes);
 app.use("/api/suppliers", supplierRoutes);
 app.use("/api/procurement", procurementRoutes);
 app.use("/api/reports", reportRoutes);
@@ -202,11 +251,12 @@ let server = null;
 async function startServer() {
   try {
     await initDatabase();
-    server = app.listen(port, () => {
+    server = app.listen(port, "0.0.0.0", () => {
+      const driver = getDatabaseDriver();
       console.log(`====================================================`);
       console.log(`🚀 BOOKNIQUE - Books & Toys Rental Management Platform API`);
-      console.log(`📡 URL: http://localhost:${port}`);
-      console.log(`🗄️ Database: MySQL (rsr_rental_db) on ${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || 3306}`);
+      console.log(`📡 URL: http://0.0.0.0:${port} (Port: ${port})`);
+      console.log(`🗄️ Database Driver: ${driver.toUpperCase()} (${driver === "postgres" ? "Render / Cloud PostgreSQL" : "Local MySQL"})`);
       console.log(`====================================================`);
     });
   } catch (err) {

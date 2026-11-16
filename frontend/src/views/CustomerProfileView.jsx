@@ -30,7 +30,14 @@ export default function CustomerProfileView({ customer, onRefresh, onNavigate })
     setIsSaving(true);
 
     try {
-      localStorage.setItem("booknique_host_ip", hostIp);
+      if (hostIp === "render") {
+        localStorage.setItem("booknique_api_url", "https://booknique-api.onrender.com");
+        localStorage.setItem("booknique_env_mode", "render");
+      } else {
+        localStorage.removeItem("booknique_api_url");
+        localStorage.setItem("booknique_env_mode", "local");
+        localStorage.setItem("booknique_host_ip", hostIp);
+      }
       if (customer?.id) {
         await request(`/api/customers/${customer.id}`, {
           method: "PUT",
@@ -192,6 +199,7 @@ export default function CustomerProfileView({ customer, onRefresh, onNavigate })
               onChange={e => setHostIp(e.target.value)}
               className="w-full py-2 px-3 rounded-xl border border-slate-300 bg-white font-medium focus:outline-none"
             >
+              <option value="render">https://booknique-api.onrender.com (Render Cloud)</option>
               <option value="10.0.2.2">10.0.2.2 (Android Emulator)</option>
               <option value="192.168.1.2">192.168.1.2 (Local WiFi / Device)</option>
               <option value="localhost">localhost (Web Browser)</option>
