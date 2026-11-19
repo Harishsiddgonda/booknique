@@ -12,6 +12,16 @@ export const formatINR = (amount, options = {}) => {
 // Backward-compatible alias for existing call sites
 export const formatMoney = (amount) => formatINR(amount);
 
+// Detect whether running in Capacitor Native Android/iOS or web
+export function isNativePlatform() {
+  if (typeof window === "undefined") return false;
+  return Boolean(
+    window.Capacitor?.isNativePlatform?.() ||
+    window.location.protocol === "capacitor:" ||
+    window.location.origin === "https://localhost"
+  );
+}
+
 // Smart Mobile & Web API Base URL Resolver
 export function getApiBaseUrl() {
   const custom = localStorage.getItem("booknique_api_url");
@@ -25,25 +35,40 @@ export function getApiBaseUrl() {
   }
 
   // Detect Capacitor native platform (Android / iOS)
-  const isNative = typeof window !== "undefined" && (
-    window.Capacitor?.isNativePlatform() ||
-    window.location.protocol === "capacitor:" ||
-    window.location.origin === "https://localhost"
-  );
-
-  if (isNative) {
-    // Check if user saved a production cloud URL or local dev IP
-    const targetEnv = localStorage.getItem("booknique_env_mode") || "render";
+  if (isNativePlatform()) {
+    const targetEnv = localStorage.getItem("booknique_env_mode") || "local";
     if (targetEnv === "render") {
-      return "https://booknique-api.onrender.com";
+      const customRender = localStorage.getItem("booknique_render_url") || "https://booknique-api.onrender.com";
+      return customRender.trim().replace(/\/$/, "");
     }
 
-    // 10.0.2.2 points to host machine from Android Emulator, 192.168.1.2 for physical device
-    const savedHost = localStorage.getItem("booknique_host_ip") || "10.0.2.2";
+    // Default to the host PC's Wi-Fi / Hotspot LAN IP (192.168.1.10)
+    const savedHost = localStorage.getItem("booknique_host_ip") || "192.168.1.10";
     return `http://${savedHost}:5000`;
   }
 
   return "";
+}
+
+// Quick health probe for live status indicators
+export async function checkApiHealth(targetUrl) {
+  const url = (targetUrl || getApiBaseUrl()).replace(/\/$/, "");
+  const pingUrl = `${url}/api/health`;
+  const start = Date.now();
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch(pingUrl, { signal: controller.signal });
+    clearTimeout(timer);
+    const latency = Date.now() - start;
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { ok: true, latency, data, url };
+    }
+    return { ok: false, latency, error: `HTTP ${res.status}`, url };
+  } catch (err) {
+    return { ok: false, latency: Date.now() - start, error: err.message, url };
+  }
 }
 
 export async function request(endpoint, options = {}) {
@@ -57,18 +82,29 @@ export async function request(endpoint, options = {}) {
   const baseUrl = getApiBaseUrl();
   const fullUrl = endpoint.startsWith("http") ? endpoint : `${baseUrl}${endpoint}`;
 
-  const res = await fetch(fullUrl, {
-    ...options,
-    headers
-  });
+  const timeoutMs = options.timeout || (isNativePlatform() ? 4500 : 8000);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  const data = await res.json().catch(() => ({}));
+  try {
+    const res = await fetch(fullUrl, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal
+    });
+    clearTimeout(timer);
 
-  if (!res.ok) {
-    throw new Error(data.error || `Request failed with status ${res.status}`);
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.error || `Request failed with status ${res.status}`);
+    }
+
+    return data;
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
   }
-
-  return data;
 }
 
 export function exportToCSV(filename, rows) {

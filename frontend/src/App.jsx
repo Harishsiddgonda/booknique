@@ -16,7 +16,14 @@ import {
   Sparkles
 } from "lucide-react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { request, formatINR, formatMoney } from "./utils/api";
+import { request, formatINR, formatMoney, isNativePlatform, getApiBaseUrl } from "./utils/api";
+import {
+  FALLBACK_INVENTORY,
+  FALLBACK_PLANS,
+  FALLBACK_CUSTOMERS,
+  FALLBACK_RENTALS,
+  FALLBACK_DASHBOARD
+} from "./utils/fallbackData";
 
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
@@ -27,6 +34,7 @@ import SplashScreen from "./components/SplashScreen";
 import OnboardingModal from "./components/OnboardingModal";
 import MobileBottomNav from "./components/MobileBottomNav";
 import ProductQuickView from "./components/ProductQuickView";
+import ServerSettingsModal from "./components/ServerSettingsModal";
 
 import DashboardView from "./views/DashboardView";
 import InventoryView from "./views/InventoryView";
@@ -87,42 +95,6 @@ function MainApp() {
     }
   }, []);
 
-  // Native Android Back Button & Status Bar Handling
-  useEffect(() => {
-    let backHandler = null;
-    import("@capacitor/app").then(({ App }) => {
-      backHandler = App.addListener("backButton", () => {
-        if (quickViewItem) {
-          setQuickViewItem(null);
-        } else if (cartOpen) {
-          setCartOpen(false);
-        } else if (modalType) {
-          setModalType("");
-        } else if (selectedReceipt) {
-          setSelectedReceipt(null);
-        } else if (authModalOpen) {
-          setAuthModalOpen(false);
-        } else if (activeTab !== "customer_home" && activeTab !== "dashboard") {
-          setActiveTab(role === "customer" ? "customer_home" : "dashboard");
-        } else {
-          App.exitApp();
-        }
-      });
-    }).catch(() => {});
-
-    // Status bar styling
-    import("@capacitor/status-bar").then(({ StatusBar, Style }) => {
-      StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
-      StatusBar.setBackgroundColor({ color: "#0F172A" }).catch(() => {});
-    }).catch(() => {});
-
-    return () => {
-      if (backHandler && backHandler.remove) {
-        backHandler.remove();
-      }
-    };
-  }, [quickViewItem, cartOpen, modalType, selectedReceipt, authModalOpen, activeTab, role]);
-
   // Global search & filters
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All");
@@ -155,6 +127,46 @@ function MainApp() {
   const [editingItem, setEditingItem] = useState(null);
   const [activeRentalForReturn, setActiveRentalForReturn] = useState(null);
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [serverModalOpen, setServerModalOpen] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+
+  // Native Android Back Button & Status Bar Handling
+  useEffect(() => {
+    let backHandler = null;
+    import("@capacitor/app").then(({ App }) => {
+      backHandler = App.addListener("backButton", () => {
+        if (serverModalOpen) {
+          setServerModalOpen(false);
+        } else if (quickViewItem) {
+          setQuickViewItem(null);
+        } else if (cartOpen) {
+          setCartOpen(false);
+        } else if (modalType) {
+          setModalType("");
+        } else if (selectedReceipt) {
+          setSelectedReceipt(null);
+        } else if (authModalOpen) {
+          setAuthModalOpen(false);
+        } else if (activeTab !== "customer_home" && activeTab !== "dashboard") {
+          setActiveTab(role === "customer" ? "customer_home" : "dashboard");
+        } else {
+          App.exitApp();
+        }
+      });
+    }).catch(() => {});
+
+    // Status bar styling
+    import("@capacitor/status-bar").then(({ StatusBar, Style }) => {
+      StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+      StatusBar.setBackgroundColor({ color: "#0F172A" }).catch(() => {});
+    }).catch(() => {});
+
+    return () => {
+      if (backHandler && backHandler.remove) {
+        backHandler.remove();
+      }
+    };
+  }, [quickViewItem, cartOpen, modalType, selectedReceipt, authModalOpen, serverModalOpen, activeTab, role]);
 
   function showToast(message, type = "success") {
     setToast({ message, type });
@@ -197,16 +209,44 @@ function MainApp() {
         request("/api/query/relational")
       ]);
 
-      if (dashRes.status === "fulfilled") setDashboardData(dashRes.value);
-      if (invRes.status === "fulfilled") setInventory(invRes.value);
-      if (custRes.status === "fulfilled") setCustomers(custRes.value);
-      if (rentRes.status === "fulfilled") setRentals(rentRes.value);
-      if (planRes.status === "fulfilled") setPlans(planRes.value);
-      if (payRes.status === "fulfilled") setPayments(payRes.value);
-      if (suppRes.status === "fulfilled") setSuppliers(suppRes.value);
-      if (procRes.status === "fulfilled") setProcurements(procRes.value);
-      if (notifRes.status === "fulfilled") setNotifications(notifRes.value);
-      if (sqlRes.status === "fulfilled") setRelationalData(sqlRes.value);
+      const hasInventory = invRes.status === "fulfilled" && Array.isArray(invRes.value) && invRes.value.length > 0;
+      if (hasInventory) {
+        setInventory(invRes.value);
+        setIsOfflineMode(false);
+      } else {
+        setInventory(prev => (prev && prev.length > 0 ? prev : FALLBACK_INVENTORY));
+        setIsOfflineMode(true);
+      }
+
+      if (dashRes.status === "fulfilled" && dashRes.value) {
+        setDashboardData(dashRes.value);
+      } else {
+        setDashboardData(prev => prev || FALLBACK_DASHBOARD);
+      }
+
+      if (custRes.status === "fulfilled" && Array.isArray(custRes.value) && custRes.value.length > 0) {
+        setCustomers(custRes.value);
+      } else {
+        setCustomers(prev => (prev && prev.length > 0 ? prev : FALLBACK_CUSTOMERS));
+      }
+
+      if (rentRes.status === "fulfilled" && Array.isArray(rentRes.value)) {
+        setRentals(rentRes.value);
+      } else {
+        setRentals(prev => (prev && prev.length > 0 ? prev : FALLBACK_RENTALS));
+      }
+
+      if (planRes.status === "fulfilled" && Array.isArray(planRes.value) && planRes.value.length > 0) {
+        setPlans(planRes.value);
+      } else {
+        setPlans(prev => (prev && prev.length > 0 ? prev : FALLBACK_PLANS));
+      }
+
+      if (payRes.status === "fulfilled" && Array.isArray(payRes.value)) setPayments(payRes.value);
+      if (suppRes.status === "fulfilled" && Array.isArray(suppRes.value)) setSuppliers(suppRes.value);
+      if (procRes.status === "fulfilled" && Array.isArray(procRes.value)) setProcurements(procRes.value);
+      if (notifRes.status === "fulfilled" && Array.isArray(notifRes.value)) setNotifications(notifRes.value);
+      if (sqlRes.status === "fulfilled" && Array.isArray(sqlRes.value)) setRelationalData(sqlRes.value);
 
       if (activeTab === "reports") {
         const rep = await request("/api/reports/summary").catch(() => null);
@@ -214,6 +254,12 @@ function MainApp() {
       }
     } catch (err) {
       console.error("Refresh error:", err);
+      setInventory(prev => (prev && prev.length > 0 ? prev : FALLBACK_INVENTORY));
+      setDashboardData(prev => prev || FALLBACK_DASHBOARD);
+      setPlans(prev => (prev && prev.length > 0 ? prev : FALLBACK_PLANS));
+      setCustomers(prev => (prev && prev.length > 0 ? prev : FALLBACK_CUSTOMERS));
+      setRentals(prev => (prev && prev.length > 0 ? prev : FALLBACK_RENTALS));
+      setIsOfflineMode(true);
     }
   }
 
@@ -414,6 +460,30 @@ function MainApp() {
             <CheckCircle2 className="w-4 h-4 text-amber-400" />
           )}
           <span>{toast.message}</span>
+        </div>
+      )}
+
+      {/* Network / Mobile Connection Banner */}
+      {(isNativePlatform() || isOfflineMode) && (
+        <div className="bg-slate-900 border-b border-slate-800 text-slate-300 text-xs px-3 py-1.5 flex items-center justify-between">
+          <div className="flex items-center gap-2 truncate">
+            <span
+              className={`inline-block w-2 h-2 rounded-full ${
+                isOfflineMode ? "bg-amber-400 animate-pulse" : "bg-emerald-400"
+              }`}
+            />
+            <span className="truncate font-medium text-[11px]">
+              {isOfflineMode
+                ? "Demo Mode (Offline) • All 21 features active"
+                : `Live Server • ${getApiBaseUrl() || "192.168.1.10:5000"}`}
+            </span>
+          </div>
+          <button
+            onClick={() => setServerModalOpen(true)}
+            className="ml-2 px-2.5 py-0.5 text-[10px] font-semibold bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 rounded-lg border border-indigo-500/40 transition-colors whitespace-nowrap"
+          >
+            Server Settings
+          </button>
         </div>
       )}
 
@@ -864,6 +934,13 @@ function MainApp() {
       {showOnboarding && (
         <OnboardingModal onComplete={() => setShowOnboarding(false)} />
       )}
+
+      {/* Mobile Server Connection Settings Modal */}
+      <ServerSettingsModal
+        isOpen={serverModalOpen}
+        onClose={() => setServerModalOpen(false)}
+        onRefreshData={refreshAll}
+      />
 
       {/* Native Splash Screen */}
       {showSplash && (
